@@ -20,8 +20,7 @@ from dataloader import TestDataset
 
 
 class KGEModel(nn.Module):
-    def __init__(self, nentity, nrelation, hidden_dim, gamma,
-                 double_entity_embedding=False, double_relation_embedding=False):
+    def __init__(self, nentity, nrelation, hidden_dim, gamma, pretrain_entity_embs, pretrain_relation_embs):
         super(KGEModel, self).__init__()
         self.nentity = nentity
         self.nrelation = nrelation
@@ -38,24 +37,11 @@ class KGEModel(nn.Module):
             requires_grad=False
         )
 
-        self.entity_dim = hidden_dim*2 if double_entity_embedding else hidden_dim
-        self.relation_dim = hidden_dim*2 if double_relation_embedding else hidden_dim
-
         self.entity_embedding = nn.Parameter(
-            torch.zeros(nentity, self.entity_dim))
-        nn.init.uniform_(
-            tensor=self.entity_embedding,
-            a=-self.embedding_range.item(),
-            b=self.embedding_range.item()
-        )
+            torch.tensor(pretrain_entity_embs))
 
         self.relation_embedding = nn.Parameter(
-            torch.zeros(nrelation, self.relation_dim))
-        nn.init.uniform_(
-            tensor=self.relation_embedding,
-            a=-self.embedding_range.item(),
-            b=self.embedding_range.item()
-        )
+            torch.tensor(pretrain_relation_embs))
 
     def forward(self, sample, mode='single'):
         '''
@@ -64,7 +50,7 @@ class KGEModel(nn.Module):
         In the 'head-batch' or 'tail-batch' mode, sample consists two part.
         The first part is usually the positive sample.
         And the second part is the entities in the negative samples.
-        Because negative samples and positive samples usually share two elements 
+        Because negative samples and positive samples usually share two elements
         in their triple ((head, relation) or (relation, tail)).
         '''
 
@@ -138,14 +124,6 @@ class KGEModel(nn.Module):
         else:
             raise ValueError('mode %s not supported' % mode)
 
-        model_func = {
-            'TransE': self.TransE,
-            'DistMult': self.DistMult,
-            'ComplEx': self.ComplEx,
-            'RotatE': self.RotatE,
-            'pRotatE': self.pRotatE
-        }
-
         return self.TransE(head, relation, tail, mode)
 
     def TransE(self, head, relation, tail, mode):
@@ -176,28 +154,14 @@ class KGEModel(nn.Module):
             subsampling_weight = subsampling_weight.cuda()
 
         negative_score = model((positive_sample, negative_sample), mode=mode)
-
-        if args.negative_adversarial_sampling:
-            # In self-adversarial sampling, we do not apply back-propagation on the sampling weight
-            negative_score = (F.softmax(negative_score * args.adversarial_temperature, dim=1).detach()
-                              * F.logsigmoid(-negative_score)).sum(dim=1)
-        else:
-            negative_score = F.logsigmoid(-negative_score).mean(dim=1)
-
+        negative_score = F.logsigmoid(-negative_score).mean(dim=1)
         positive_score = model(positive_sample)
-
         positive_score = F.logsigmoid(positive_score).squeeze(dim=1)
 
-        if args.uni_weight:
-            positive_sample_loss = - positive_score.mean()
-            negative_sample_loss = - negative_score.mean()
-        else:
-            positive_sample_loss = - \
-                (subsampling_weight * positive_score).sum() / \
-                subsampling_weight.sum()
-            negative_sample_loss = - \
-                (subsampling_weight * negative_score).sum() / \
-                subsampling_weight.sum()
+        positive_sample_loss = - \
+            (subsampling_weight * positive_score).sum() / subsampling_weight.sum()
+        negative_sample_loss = - \
+            (subsampling_weight * negative_score).sum() / subsampling_weight.sum()
 
         loss = (positive_sample_loss + negative_sample_loss)/2
 
@@ -233,113 +197,86 @@ class KGEModel(nn.Module):
 
         model.eval()
 
-        if args.countries:
-            # Countries S* datasets are evaluated on AUC-PR
-            # Process test data for AUC-PR evaluation
-            sample = list()
-            y_true = list()
-            for head, relation, tail in test_triples:
-                for candidate_region in args.regions:
-                    y_true.append(1 if candidate_region == tail else 0)
-                    sample.append((head, relation, candidate_region))
+        test_dataloader_head = DataLoader(
+            TestDataset(
+                test_triples,
+                all_true_triples,
+                args.nentity,
+                args.nrelation,
+                'head-batch'
+            ),
+            batch_size=args.test_batch_size,
+            num_workers=max(1, args.cpu_num//2),
+            collate_fn=TestDataset.collate_fn
+        )
 
-            sample = torch.LongTensor(sample)
-            if args.cuda:
-                sample = sample.cuda()
+        test_dataloader_tail = DataLoader(
+            TestDataset(
+                test_triples,
+                all_true_triples,
+                args.nentity,
+                args.nrelation,
+                'tail-batch'
+            ),
+            batch_size=args.test_batch_size,
+            num_workers=max(1, args.cpu_num//2),
+            collate_fn=TestDataset.collate_fn
+        )
 
-            with torch.no_grad():
-                y_score = model(sample).squeeze(1).cpu().numpy()
+        test_dataset_list = [test_dataloader_head, test_dataloader_tail]
 
-            y_true = np.array(y_true)
+        logs = []
 
-            # average_precision_score is the same as auc_pr
-            auc_pr = average_precision_score(y_true, y_score)
+        step = 0
+        total_steps = sum([len(dataset) for dataset in test_dataset_list])
 
-            metrics = {'auc_pr': auc_pr}
+        with torch.no_grad():
+            for test_dataset in test_dataset_list:
+                for positive_sample, negative_sample, filter_bias, mode in test_dataset:
+                    if args.cuda:
+                        positive_sample = positive_sample.cuda()
+                        negative_sample = negative_sample.cuda()
+                        filter_bias = filter_bias.cuda()
 
-        else:
-            # Otherwise use standard (filtered) MRR, MR, HITS@1, HITS@3, and HITS@10 metrics
-            # Prepare dataloader for evaluation
-            test_dataloader_head = DataLoader(
-                TestDataset(
-                    test_triples,
-                    all_true_triples,
-                    args.nentity,
-                    args.nrelation,
-                    'head-batch'
-                ),
-                batch_size=args.test_batch_size,
-                num_workers=max(1, args.cpu_num//2),
-                collate_fn=TestDataset.collate_fn
-            )
+                    batch_size = positive_sample.size(0)
 
-            test_dataloader_tail = DataLoader(
-                TestDataset(
-                    test_triples,
-                    all_true_triples,
-                    args.nentity,
-                    args.nrelation,
-                    'tail-batch'
-                ),
-                batch_size=args.test_batch_size,
-                num_workers=max(1, args.cpu_num//2),
-                collate_fn=TestDataset.collate_fn
-            )
+                    score = model((positive_sample, negative_sample), mode)
+                    score += filter_bias
 
-            test_dataset_list = [test_dataloader_head, test_dataloader_tail]
+                    # Explicitly sort all the entities to ensure that there is no test exposure bias
+                    argsort = torch.argsort(score, dim=1, descending=True)
 
-            logs = []
+                    if mode == 'head-batch':
+                        positive_arg = positive_sample[:, 0]
+                    elif mode == 'tail-batch':
+                        positive_arg = positive_sample[:, 2]
+                    else:
+                        raise ValueError('mode %s not supported' % mode)
 
-            step = 0
-            total_steps = sum([len(dataset) for dataset in test_dataset_list])
+                    for i in range(batch_size):
+                        # Notice that argsort is not ranking
+                        ranking = (argsort[i, :] ==
+                                   positive_arg[i]).nonzero()
+                        assert ranking.size(0) == 1
 
-            with torch.no_grad():
-                for test_dataset in test_dataset_list:
-                    for positive_sample, negative_sample, filter_bias, mode in test_dataset:
-                        if args.cuda:
-                            positive_sample = positive_sample.cuda()
-                            negative_sample = negative_sample.cuda()
-                            filter_bias = filter_bias.cuda()
+                        # ranking + 1 is the true ranking used in evaluation metrics
+                        ranking = 1 + ranking.item()
+                        logs.append({
+                            'MRR': 1.0/ranking,
+                            'MR': float(ranking),
+                            'HITS@1': 1.0 if ranking <= 1 else 0.0,
+                            'HITS@3': 1.0 if ranking <= 3 else 0.0,
+                            'HITS@10': 1.0 if ranking <= 10 else 0.0,
+                        })
 
-                        batch_size = positive_sample.size(0)
+                    if step % args.test_log_steps == 0:
+                        logging.info(
+                            'Evaluating the model... (%d/%d)' % (step, total_steps))
 
-                        score = model((positive_sample, negative_sample), mode)
-                        score += filter_bias
+                    step += 1
 
-                        # Explicitly sort all the entities to ensure that there is no test exposure bias
-                        argsort = torch.argsort(score, dim=1, descending=True)
-
-                        if mode == 'head-batch':
-                            positive_arg = positive_sample[:, 0]
-                        elif mode == 'tail-batch':
-                            positive_arg = positive_sample[:, 2]
-                        else:
-                            raise ValueError('mode %s not supported' % mode)
-
-                        for i in range(batch_size):
-                            # Notice that argsort is not ranking
-                            ranking = (argsort[i, :] ==
-                                       positive_arg[i]).nonzero()
-                            assert ranking.size(0) == 1
-
-                            # ranking + 1 is the true ranking used in evaluation metrics
-                            ranking = 1 + ranking.item()
-                            logs.append({
-                                'MRR': 1.0/ranking,
-                                'MR': float(ranking),
-                                'HITS@1': 1.0 if ranking <= 1 else 0.0,
-                                'HITS@3': 1.0 if ranking <= 3 else 0.0,
-                                'HITS@10': 1.0 if ranking <= 10 else 0.0,
-                            })
-
-                        if step % args.test_log_steps == 0:
-                            logging.info(
-                                'Evaluating the model... (%d/%d)' % (step, total_steps))
-
-                        step += 1
-
-            metrics = {}
-            for metric in logs[0].keys():
-                metrics[metric] = sum([log[metric] for log in logs])/len(logs)
+        metrics = {}
+        for metric in logs[0].keys():
+            metrics[metric] = sum([log[metric] for log in logs])/len(logs)
 
         return metrics

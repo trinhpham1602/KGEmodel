@@ -34,18 +34,7 @@ def parse_args(args=None):
     parser.add_argument('--do_test', action='store_true')
     parser.add_argument('--evaluate_train', action='store_true',
                         help='Evaluate on training data')
-
-    parser.add_argument('--countries', action='store_true',
-                        help='Use Countries S1/S2/S3 datasets')
-    parser.add_argument('--regions', type=int, nargs='+', default=None,
-                        help='Region Id for Countries S1/S2/S3 datasets, DO NOT MANUALLY SET')
-
     parser.add_argument('--data_path', type=str, default=None)
-    parser.add_argument('-de', '--double_entity_embedding',
-                        action='store_true')
-    parser.add_argument(
-        '-dr', '--double_relation_embedding', action='store_true')
-
     parser.add_argument('-n', '--negative_sample_size', default=128, type=int)
     parser.add_argument('-d', '--hidden_dim', default=500, type=int)
     parser.add_argument('-g', '--gamma', default=12.0, type=float)
@@ -57,8 +46,8 @@ def parse_args(args=None):
     parser.add_argument('-r', '--regularization', default=0.0, type=float)
     parser.add_argument('--test_batch_size', default=4,
                         type=int, help='valid/test batch size')
-    parser.add_argument('--uni_weight', action='store_true',
-                        help='Otherwise use subsampling weighting like in word2vec')
+    parser.add_argument('-pre', '--pretrain_path',
+                        default='./pretrain/FB15k-237', type=float)
 
     parser.add_argument('-lr', '--learning_rate', default=0.0001, type=float)
     parser.add_argument('-cpu', '--cpu_num', default=10, type=int)
@@ -90,12 +79,8 @@ def override_config(args):
     with open(os.path.join(args.init_checkpoint, 'config.json'), 'r') as fjson:
         argparse_dict = json.load(fjson)
 
-    args.countries = argparse_dict['countries']
     if args.data_path is None:
         args.data_path = argparse_dict['data_path']
-    args.model = argparse_dict['model']
-    args.double_entity_embedding = argparse_dict['double_entity_embedding']
-    args.double_relation_embedding = argparse_dict['double_relation_embedding']
     args.hidden_dim = argparse_dict['hidden_dim']
     args.test_batch_size = argparse_dict['test_batch_size']
 
@@ -207,15 +192,6 @@ def main(args):
             rid, relation = line.strip().split('\t')
             relation2id[relation] = int(rid)
 
-    # Read regions for Countries S* datasets
-    if args.countries:
-        regions = list()
-        with open(os.path.join(args.data_path, 'regions.list')) as fin:
-            for line in fin:
-                region = line.strip()
-                regions.append(entity2id[region])
-        args.regions = regions
-
     nentity = len(entity2id)
     nrelation = len(relation2id)
 
@@ -239,14 +215,16 @@ def main(args):
 
     # All true triples
     all_true_triples = train_triples + valid_triples + test_triples
-
+    # load pretrain embs
+    pre_ent_embs = np.load(args.pretrain_path + "/" + "entity_embedding.npy")
+    pre_rel_embs = np.load(args.pretrain_path + "/" + "relation_embedding.npy")
     kge_model = KGEModel(
         nentity=nentity,
         nrelation=nrelation,
         hidden_dim=args.hidden_dim,
         gamma=args.gamma,
-        double_entity_embedding=args.double_entity_embedding,
-        double_relation_embedding=args.double_relation_embedding
+        pretrain_entity_embs=pre_ent_embs,
+        pretrain_relation_embs=pre_rel_embs
     )
 
     logging.info('Model Parameter Configuration:')
