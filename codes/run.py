@@ -47,7 +47,7 @@ def parse_args(args=None):
     parser.add_argument('--test_batch_size', default=4,
                         type=int, help='valid/test batch size')
     parser.add_argument('-pre', '--pretrain_path',
-                        default='./pretrain/FB15k-237', type=float)
+                        default='./pretrain/FB15k-237', type=str)
 
     parser.add_argument('-lr', '--learning_rate', default=0.0001, type=float)
     parser.add_argument('-cpu', '--cpu_num', default=10, type=int)
@@ -281,7 +281,7 @@ def main(args):
             warm_up_steps = checkpoint['warm_up_steps']
             optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     else:
-        logging.info('Ramdomly Initializing %s Model...' % args.model)
+        logging.info('Use the pretrain %s Model...' % "TransE")
         init_step = 0
 
     step = init_step
