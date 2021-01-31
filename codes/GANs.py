@@ -1,9 +1,11 @@
+import time
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader
+from torch.autograd import Variable
 import numpy as np
-
+import random
+import model
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
@@ -28,47 +30,51 @@ class Generator(nn.Module):
             nn.Linear(hrt_concat_dim, 10),
             nn.ReLU(),
             nn.Linear(10, 1),
-            nn.Softmax(dim=0),
+            nn.Softmax(dim=1),
         )
 
     def forward(self, x):
         return self.gen(x)
 
 
-def run(postriples, emb_dim, lr, epochs, negative_sample_size, n_neg):
-
-    disc = Discriminator(emb_dim).to(device)
-    gen = Generator(3*emb_dim).to(device)
+def run(model, pos_triples, neg_triples, emb_dim, lr, step, n_negs, k_negs, mode):
+    disc = Discriminator(emb_dim).to(device)  # environment
+    gen = Generator(3*emb_dim).to(device)  # agent
     opt_disc = optim.Adam(disc.parameters(), lr=lr)
     opt_gen = optim.Adam(gen.parameters(), lr=lr)
-    criterion = nn.BCELoss()
-
-    for _ in range(epochs):
-
-        # Train Discriminator: max log(D(x)) + log(1 - D(G(z)))
-        noise = torch.randn(negative_sample_size * n_neg, 3*emb_dim).to(
-            device)
-        fake_probab = gen(noise)
-        true_neg_trips = noise[torch.topk(
-            fake_probab, negative_sample_size).indices]
-        fake_trips = noise.reshape((len(fake_trips), 3, emb_dim))
-        disc_real = disc(postriples).view(-1)
-        lossD_real = criterion(disc_real, torch.ones_like(disc_real))
-        disc_fake = disc(fake_trips).view(-1)
-        lossD_fake = criterion(disc_fake, torch.zeros_like(disc_fake))
-        lossD = (lossD_real + lossD_fake) / 2
-        disc.zero_grad()
-        lossD.backward(retain_graph=True)
+    b = 0
+    for _ in range(step):
+        opt_disc.zero_grad()
+        opt_gen.zero_grad()
+        # get embs for pos and neg
+        pos_embs = model.take_embs(pos_triples)
+        h, r, t = model.take_embs((pos_triples, neg_triples), mode)
+        global sum_negs, concat_hrt
+        if mode == "head-batch":
+            sum_negs = h + (r - t)
+        if mode == "tail-batch":
+            sum_negs = (h + r) - t
+        loss_d = -torch.log(disc(pos_embs.to(device))) - \
+            torch.sum(torch.log(1 - disc(sum_negs.to(device))))
+        loss_d.mean().backward()
         opt_disc.step()
-
-        # Train Generator: min log(1 - D(G(z))) <-> max log(D(G(z))
-        # where the second option of maximizing doesn't suffer from
-        # saturating gradients
-        true_neg_trips = true.neg_trips.reshape(
-            (len(true_neg_trips), 3, emb_dim))
-        output = disc(fake_trips).view(-1)
-        lossG = criterion(output, torch.ones_like(output))
-        gen.zero_grad()
-        lossG.backward()
+        reward = - disc(sum_negs).detach()
+        concat_hrt = torch.empty((pos_embs.size(0), n_negs, emb_dim*3))
+        if mode == "head-batch":
+            for inx in range(h.size(1)):
+                concat_hrt[:, inx] = torch.cat((h[:, inx], torch.cat(
+                    (r, t), dim=1).view(pos_embs.size(0), emb_dim*2)), dim=1)
+        if mode == "tail-batch":
+            for inx in range(t.size(1)):
+                concat_hrt[:, inx] = torch.cat((torch.cat((h, r), dim=1).view(
+                    pos_embs.size(0), emb_dim*2), t[:, inx]), dim=1)
+        concat_hrt = concat_hrt.detach()
+        loss_g = (reward - b) * torch.log(gen(concat_hrt))
+        loss_g.mean().backward()
         opt_gen.step()
-    return disc, gen
+        global high_neg_triples
+        high_neg_triples = torch.empty(pos_triples.size(0), k_negs)
+        for inx, indices in enumerate(torch.topk(gen(concat_hrt).view(pos_triples.size(0), n_negs), k_negs, dim=1).indices):
+            high_neg_triples[inx] = neg_triples[inx][indices]
+        b = reward/pos_triples.size(0)
+    return disc, high_neg_triples.long()

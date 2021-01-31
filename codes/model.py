@@ -17,14 +17,16 @@ from sklearn.metrics import average_precision_score
 from torch.utils.data import DataLoader
 
 from dataloader import TestDataset
+import GANs
 
 
 class KGEModel(nn.Module):
-    def __init__(self, nentity, nrelation, hidden_dim, gamma, pretrain_entity_embs, pretrain_relation_embs):
+    def __init__(self, nentity, nrelation, hidden_dim, gamma, pretrain_entity_embs, pretrain_relation_embs, neg_sample_size):
         super(KGEModel, self).__init__()
         self.nentity = nentity
         self.nrelation = nrelation
         self.hidden_dim = hidden_dim
+        self.neg_sample_size = neg_sample_size
         self.epsilon = 2.0
 
         self.gamma = nn.Parameter(
@@ -43,7 +45,7 @@ class KGEModel(nn.Module):
         self.relation_embedding = nn.Parameter(
             torch.tensor(pretrain_relation_embs))
 
-    def forward(self, sample, mode='single'):
+    def forward(self, sample, D, mode='single'):
         '''
         Forward function that calculate the score of a batch of triples.
         In the 'single' mode, sample is a batch of triple.
@@ -53,9 +55,8 @@ class KGEModel(nn.Module):
         Because negative samples and positive samples usually share two elements
         in their triple ((head, relation) or (relation, tail)).
         '''
-
         if mode == 'single':
-            batch_size, negative_sample_size = sample.size(0), 1
+            batch_size, negative_sample_size = sample.size(0), 0
 
             head = torch.index_select(
                 self.entity_embedding,
@@ -74,7 +75,6 @@ class KGEModel(nn.Module):
                 dim=0,
                 index=sample[:, 2]
             ).unsqueeze(1)
-
         elif mode == 'head-batch':
             tail_part, head_part = sample
             batch_size, negative_sample_size = head_part.size(
@@ -124,12 +124,87 @@ class KGEModel(nn.Module):
         else:
             raise ValueError('mode %s not supported' % mode)
 
-        return self.TransE(head, relation, tail, mode)
+        return self.NoiAware(head, relation, tail, D, mode)
 
-    def TransE(self, head, relation, tail, mode):
+    def take_embs(self, sample, mode="single"):
+        if mode == 'single':
+            batch_size, negative_sample_size = sample.size(0), 1
+
+            head = torch.index_select(
+                self.entity_embedding,
+                dim=0,
+                index=sample[:, 0]
+            ).unsqueeze(1)
+
+            relation = torch.index_select(
+                self.relation_embedding,
+                dim=0,
+                index=sample[:, 1]
+            ).unsqueeze(1)
+
+            tail = torch.index_select(
+                self.entity_embedding,
+                dim=0,
+                index=sample[:, 2]
+            ).unsqueeze(1)
+            # for positive triple
+            return head + relation - tail
+        elif mode == 'head-batch':
+            tail_part, head_part = sample
+            batch_size, negative_sample_size = head_part.size(
+                0), head_part.size(1)
+
+            head = torch.index_select(
+                self.entity_embedding,
+                dim=0,
+                index=head_part.view(-1)
+            ).view(batch_size, negative_sample_size, -1)
+
+            relation = torch.index_select(
+                self.relation_embedding,
+                dim=0,
+                index=tail_part[:, 1]
+            ).unsqueeze(1)
+
+            tail = torch.index_select(
+                self.entity_embedding,
+                dim=0,
+                index=tail_part[:, 2]
+            ).unsqueeze(1)
+            return head, relation, tail
+        elif mode == 'tail-batch':
+            head_part, tail_part = sample
+            batch_size, negative_sample_size = tail_part.size(
+                0), tail_part.size(1)
+
+            head = torch.index_select(
+                self.entity_embedding,
+                dim=0,
+                index=head_part[:, 0]
+            ).unsqueeze(1)
+
+            relation = torch.index_select(
+                self.relation_embedding,
+                dim=0,
+                index=head_part[:, 1]
+            ).unsqueeze(1)
+
+            tail = torch.index_select(
+                self.entity_embedding,
+                dim=0,
+                index=tail_part.view(-1)
+            ).view(batch_size, negative_sample_size, -1)
+            return head, relation, tail
+        else:
+            raise ValueError('mode %s not supported' % mode)
+
+    def NoiAware(self, head, relation, tail, D, mode):
+        if mode == "single":
+            score = D((head + relation) - tail) * \
+                ((head + relation) - tail)
         if mode == 'head-batch':
             score = head + (relation - tail)
-        else:
+        if mode == 'tail-batch':
             score = (head + relation) - tail
 
         score = self.gamma.item() - torch.norm(score, p=1, dim=2)
@@ -145,23 +220,27 @@ class KGEModel(nn.Module):
 
         optimizer.zero_grad()
 
-        positive_sample, negative_sample, subsampling_weight, mode = next(
+        positive_sample, negative_sample, mode = next(
             train_iterator)
+        # Train GAN with positve sample
+        # hyper parameters
+        lr = 0.001
+        step = 1000
+        n_negs = negative_sample.size(1)
+        k_negs = 64
+        D, high_neg_triples = GANs.run(model, positive_sample, negative_sample, model.hidden_dim,
+                                       lr, step, n_negs, k_negs, mode)
 
         if args.cuda:
             positive_sample = positive_sample.cuda()
-            negative_sample = negative_sample.cuda()
-            subsampling_weight = subsampling_weight.cuda()
-
-        negative_score = model((positive_sample, negative_sample), mode=mode)
+            high_neg_triples = high_neg_triples.cuda()
+        negative_score = model(
+            (positive_sample, high_neg_triples), D, mode=mode)
         negative_score = F.logsigmoid(-negative_score).mean(dim=1)
-        positive_score = model(positive_sample)
+        positive_score = model(positive_sample, D)
         positive_score = F.logsigmoid(positive_score).squeeze(dim=1)
-
-        positive_sample_loss = - \
-            (subsampling_weight * positive_score).sum() / subsampling_weight.sum()
-        negative_sample_loss = - \
-            (subsampling_weight * negative_score).sum() / subsampling_weight.sum()
+        positive_sample_loss = - positive_score.mean()
+        negative_sample_loss = - negative_score.mean()
 
         loss = (positive_sample_loss + negative_sample_loss)/2
 

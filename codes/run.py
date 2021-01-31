@@ -224,7 +224,8 @@ def main(args):
         hidden_dim=args.hidden_dim,
         gamma=args.gamma,
         pretrain_entity_embs=pre_ent_embs,
-        pretrain_relation_embs=pre_rel_embs
+        pretrain_relation_embs=pre_rel_embs,
+        neg_sample_size=args.negative_sample_size
     )
 
     logging.info('Model Parameter Configuration:')

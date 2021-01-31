@@ -19,7 +19,6 @@ class TrainDataset(Dataset):
         self.nrelation = nrelation
         self.negative_sample_size = negative_sample_size
         self.mode = mode
-        self.count = self.count_frequency(triples)
         self.true_head, self.true_tail = self.get_true_head_and_tail(
             self.triples)
 
@@ -31,16 +30,12 @@ class TrainDataset(Dataset):
 
         head, relation, tail = positive_sample
 
-        subsampling_weight = self.count[(
-            head, relation)] + self.count[(tail, -relation-1)]
-        subsampling_weight = torch.sqrt(1 / torch.Tensor([subsampling_weight]))
-
         negative_sample_list = []
         negative_sample_size = 0
         # tao negative samples gap k lan, sau do chon ra negative size bang GANs voi batch size cao nhat
         while negative_sample_size < self.negative_sample_size:
             negative_sample = np.random.randint(
-                self.nentity, size=self.negative_sample_size*2)
+                self.nentity, size=self.negative_sample_size)
             if self.mode == 'head-batch':
                 mask = np.in1d(
                     negative_sample,
@@ -69,34 +64,14 @@ class TrainDataset(Dataset):
 
         positive_sample = torch.LongTensor(positive_sample)
 
-        return positive_sample, negative_sample, subsampling_weight, self.mode
+        return positive_sample, negative_sample, self.mode
 
     @staticmethod
     def collate_fn(data):
         positive_sample = torch.stack([_[0] for _ in data], dim=0)
         negative_sample = torch.stack([_[1] for _ in data], dim=0)
-        subsample_weight = torch.cat([_[2] for _ in data], dim=0)
-        mode = data[0][3]
-        return positive_sample, negative_sample, subsample_weight, mode
-
-    @staticmethod
-    def count_frequency(triples, start=4):
-        '''
-        Get frequency of a partial triple like (head, relation) or (relation, tail)
-        The frequency will be used for subsampling like word2vec
-        '''
-        count = {}
-        for head, relation, tail in triples:
-            if (head, relation) not in count:
-                count[(head, relation)] = start
-            else:
-                count[(head, relation)] += 1
-
-            if (tail, -relation-1) not in count:
-                count[(tail, -relation-1)] = start
-            else:
-                count[(tail, -relation-1)] += 1
-        return count
+        mode = data[0][2]
+        return positive_sample, negative_sample, mode
 
     @staticmethod
     def get_true_head_and_tail(triples):

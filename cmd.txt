@@ -1,0 +1,15 @@
+without GPU
+CUDA_VISIBLE_DEVICES=0 python3 -u codes/run.py --do_train \
+ --data_path data/FB15k-237 \
+ -n 256 -b 1024 -d 500 \
+ -g 24.0 -a 1.0 -adv \
+ -lr 0.0001 --max_steps 150000 \
+ -save models/TransE_FB15k-237 --test_batch_size 16
+having GPU
+CUDA_VISIBLE_DEVICES=0 python -u codes/run.py --do_train \
+ --cuda \
+ --data_path data/FB15k-237 \
+ -n 256 -b 1024 -d 1000 \
+ -g 24.0 -a 1.0 -adv \
+ -lr 0.0001 --max_steps 150000 \
+ -save models/TransE_FB15k-237 --test_batch_size 16
