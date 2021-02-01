@@ -43,6 +43,8 @@ def run(model, pos_triples, neg_triples, emb_dim, lr, step, n_negs, k_negs, mode
     opt_disc = optim.Adam(disc.parameters(), lr=lr)
     opt_gen = optim.Adam(gen.parameters(), lr=lr)
     b = 0
+    pos_triples = pos_triples.to(device)
+    neg_triples = neg_triples.to(device)
     for _ in range(step):
         opt_disc.zero_grad()
         opt_gen.zero_grad()
@@ -54,8 +56,8 @@ def run(model, pos_triples, neg_triples, emb_dim, lr, step, n_negs, k_negs, mode
             sum_negs = h + (r - t)
         if mode == "tail-batch":
             sum_negs = (h + r) - t
-        loss_d = -torch.log(disc(pos_embs.to(device))) - \
-            torch.sum(torch.log(1 - disc(sum_negs.to(device))))
+        loss_d = -torch.log(disc(pos_embs)) - \
+            torch.sum(torch.log(1 - disc(sum_negs)))
         loss_d.mean().backward()
         opt_disc.step()
         reward = - disc(sum_negs).detach()
@@ -68,12 +70,13 @@ def run(model, pos_triples, neg_triples, emb_dim, lr, step, n_negs, k_negs, mode
             for inx in range(t.size(1)):
                 concat_hrt[:, inx] = torch.cat((torch.cat((h, r), dim=1).view(
                     pos_embs.size(0), emb_dim*2), t[:, inx]), dim=1)
-        concat_hrt = concat_hrt.detach()
+        concat_hrt = concat_hrt.detach().to(device)
         loss_g = (reward - b) * torch.log(gen(concat_hrt))
         loss_g.mean().backward()
         opt_gen.step()
         global high_neg_triples
-        high_neg_triples = torch.empty(pos_triples.size(0), k_negs)
+        high_neg_triples = torch.empty(
+            (pos_triples.size(0), k_negs), device=device)
         for inx, indices in enumerate(torch.topk(gen(concat_hrt).view(pos_triples.size(0), n_negs), k_negs, dim=1).indices):
             high_neg_triples[inx] = neg_triples[inx][indices]
         b = reward/pos_triples.size(0)
