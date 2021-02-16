@@ -1,64 +1,25 @@
-<<<<<<< HEAD
-2021-02-16 10:16:06 INFO     Model: TransE
-2021-02-16 10:16:06 INFO     Data Path: data/FB15k-237
-2021-02-16 10:16:06 INFO     #entity: 14541
-2021-02-16 10:16:06 INFO     #relation: 237
-2021-02-16 10:16:06 INFO     #train: 272115
-2021-02-16 10:16:06 INFO     #valid: 17535
-2021-02-16 10:16:06 INFO     #test: 20466
-2021-02-16 10:16:06 INFO     Model Parameter Configuration:
-2021-02-16 10:16:06 INFO     Parameter gamma: torch.Size([1]), require_grad = False
-2021-02-16 10:16:06 INFO     Parameter embedding_range: torch.Size([1]), require_grad = False
-2021-02-16 10:16:06 INFO     Parameter entity_embedding: torch.Size([14541, 100]), require_grad = True
-2021-02-16 10:16:06 INFO     Parameter relation_embedding: torch.Size([237, 100]), require_grad = True
-2021-02-16 10:16:08 INFO     Use the pretrain TransE Model...
-2021-02-16 10:16:08 INFO     Start Training...
-2021-02-16 10:16:08 INFO     init_step = 0
-2021-02-16 10:16:08 INFO     batch_size = 1024
-2021-02-16 10:16:08 INFO     negative_adversarial_sampling = 1
-2021-02-16 10:16:08 INFO     hidden_dim = 100
-2021-02-16 10:16:08 INFO     gamma = 24.000000
-2021-02-16 10:16:08 INFO     negative_adversarial_sampling = True
-2021-02-16 10:16:08 INFO     adversarial_temperature = 1.000000
-2021-02-16 10:16:08 INFO     learning_rate = 0
-2021-02-16 10:16:10 INFO     Training average positive_sample_loss at step 0: 0.000000
-2021-02-16 10:16:10 INFO     Training average negative_sample_loss at step 0: 0.005853
-2021-02-16 10:16:10 INFO     Training average loss at step 0: 0.002927
-=======
-2021-02-05 16:10:19 INFO     Model: TransE
-2021-02-05 16:10:19 INFO     Data Path: data/FB15k-237
-2021-02-05 16:10:19 INFO     #entity: 14541
-2021-02-05 16:10:19 INFO     #relation: 237
-2021-02-05 16:10:19 INFO     #train: 272115
-2021-02-05 16:10:19 INFO     #valid: 17535
-2021-02-05 16:10:19 INFO     #test: 20466
-2021-02-05 16:10:19 INFO     Model Parameter Configuration:
-2021-02-05 16:10:19 INFO     Parameter gamma: torch.Size([1]), require_grad = False
-2021-02-05 16:10:19 INFO     Parameter embedding_range: torch.Size([1]), require_grad = False
-2021-02-05 16:10:19 INFO     Parameter entity_embedding: torch.Size([14541, 500]), require_grad = True
-2021-02-05 16:10:19 INFO     Parameter relation_embedding: torch.Size([237, 500]), require_grad = True
-2021-02-05 16:10:25 INFO     Use the pretrain TransE Model...
-2021-02-05 16:10:25 INFO     Start Training...
-2021-02-05 16:10:25 INFO     init_step = 0
-2021-02-05 16:10:25 INFO     batch_size = 1024
-2021-02-05 16:10:25 INFO     negative_adversarial_sampling = 1
-2021-02-05 16:10:25 INFO     hidden_dim = 500
-2021-02-05 16:10:25 INFO     gamma = 24.000000
-2021-02-05 16:10:25 INFO     negative_adversarial_sampling = True
-2021-02-05 16:10:25 INFO     adversarial_temperature = 1.000000
-2021-02-05 16:10:25 INFO     learning_rate = 0
-2021-02-05 16:34:00 INFO     Training average positive_sample_loss at step 0: 0.000000
-2021-02-05 16:34:00 INFO     Training average negative_sample_loss at step 0: 0.009722
-2021-02-05 16:34:00 INFO     Training average loss at step 0: 0.004861
-2021-02-06 13:20:06 INFO     Training average positive_sample_loss at step 50: 0.000000
-2021-02-06 13:20:06 INFO     Training average negative_sample_loss at step 50: 0.019574
-2021-02-06 13:20:06 INFO     Training average loss at step 50: 0.009787
-2021-02-07 17:22:03 INFO     Change learning_rate to 0.000010 at step 100
-2021-02-07 17:22:04 INFO     Training average positive_sample_loss at step 100: 0.000000
-2021-02-07 17:22:04 INFO     Training average negative_sample_loss at step 100: 0.014346
-2021-02-07 17:22:04 INFO     Training average loss at step 100: 0.007173
-2021-02-08 21:36:09 INFO     Training average positive_sample_loss at step 150: 0.000000
-2021-02-08 21:36:09 INFO     Training average negative_sample_loss at step 150: 0.011521
-2021-02-08 21:36:09 INFO     Training average loss at step 150: 0.005760
-2021-02-09 23:19:02 INFO     Evaluating on Test Dataset...
->>>>>>> f417b76e4e143e625d1f14515b6609176c6a135f
+2021-02-16 10:25:33 INFO     Model: TransE
+2021-02-16 10:25:33 INFO     Data Path: data/FB15k-237
+2021-02-16 10:25:33 INFO     #entity: 14541
+2021-02-16 10:25:33 INFO     #relation: 237
+2021-02-16 10:25:33 INFO     #train: 272115
+2021-02-16 10:25:33 INFO     #valid: 17535
+2021-02-16 10:25:33 INFO     #test: 20466
+2021-02-16 10:25:33 INFO     Model Parameter Configuration:
+2021-02-16 10:25:33 INFO     Parameter gamma: torch.Size([1]), require_grad = False
+2021-02-16 10:25:33 INFO     Parameter embedding_range: torch.Size([1]), require_grad = False
+2021-02-16 10:25:33 INFO     Parameter entity_embedding: torch.Size([14541, 100]), require_grad = True
+2021-02-16 10:25:33 INFO     Parameter relation_embedding: torch.Size([237, 100]), require_grad = True
+2021-02-16 10:25:35 INFO     Use the pretrain TransE Model...
+2021-02-16 10:25:35 INFO     Start Training...
+2021-02-16 10:25:35 INFO     init_step = 0
+2021-02-16 10:25:35 INFO     batch_size = 1024
+2021-02-16 10:25:35 INFO     negative_adversarial_sampling = 1
+2021-02-16 10:25:35 INFO     hidden_dim = 100
+2021-02-16 10:25:35 INFO     gamma = 24.000000
+2021-02-16 10:25:35 INFO     negative_adversarial_sampling = True
+2021-02-16 10:25:35 INFO     adversarial_temperature = 1.000000
+2021-02-16 10:25:35 INFO     learning_rate = 0
+2021-02-16 10:25:37 INFO     Training average positive_sample_loss at step 0: 0.000018
+2021-02-16 10:25:37 INFO     Training average negative_sample_loss at step 0: 0.006225
+2021-02-16 10:25:37 INFO     Training average loss at step 0: 0.003122
