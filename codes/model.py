@@ -230,12 +230,12 @@ class KGEModel(nn.Module):
         k_negs = 64
         D, high_neg_triples = GANs.run(model, positive_sample, negative_sample, model.hidden_dim,
                                        lr, step, n_negs, k_negs, mode)
-
         if args.cuda:
             positive_sample = positive_sample.cuda()
             high_neg_triples = high_neg_triples.cuda()
         negative_score = model(
             (positive_sample, high_neg_triples), D, mode=mode)
+        print("aloooo")
         negative_score = F.logsigmoid(-negative_score).mean(dim=1)
         positive_score = model(positive_sample, D)
         positive_score = F.logsigmoid(positive_score).squeeze(dim=1)
@@ -254,7 +254,6 @@ class KGEModel(nn.Module):
             regularization_log = {'regularization': regularization.item()}
         else:
             regularization_log = {}
-
         loss.backward()
 
         optimizer.step()

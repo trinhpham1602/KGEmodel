@@ -45,7 +45,7 @@ def run(model, pos_triples, neg_triples, emb_dim, lr, step, n_negs, k_negs, mode
     b = 0
     pos_triples = pos_triples.to(device)
     neg_triples = neg_triples.to(device)
-    t = time.time()
+    start = time.time()
     for _ in range(step):
         opt_disc.zero_grad()
         opt_gen.zero_grad()
@@ -81,5 +81,5 @@ def run(model, pos_triples, neg_triples, emb_dim, lr, step, n_negs, k_negs, mode
         for inx, indices in enumerate(torch.topk(gen(concat_hrt).view(pos_triples.size(0), n_negs), k_negs, dim=1).indices):
             high_neg_triples[inx] = neg_triples[inx][indices]
         b = reward/pos_triples.size(0)
-    print(time.time() - t)
+    print(time.time() - start)
     return disc, high_neg_triples.long()
