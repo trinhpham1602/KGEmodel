@@ -225,7 +225,7 @@ class KGEModel(nn.Module):
         # Train GAN with positve sample
         # hyper parameters
         lr = 0.001
-        step = 1
+        step = 1000
         n_negs = negative_sample.size(1)
         k_negs = 64
         D, high_neg_triples = GANs.run(model, positive_sample, negative_sample, model.hidden_dim,
@@ -235,7 +235,6 @@ class KGEModel(nn.Module):
             high_neg_triples = high_neg_triples.cuda()
         negative_score = model(
             (positive_sample, high_neg_triples), D, mode=mode)
-        print("aloooo")
         negative_score = F.logsigmoid(-negative_score).mean(dim=1)
         positive_score = model(positive_sample, D)
         positive_score = F.logsigmoid(positive_score).squeeze(dim=1)
