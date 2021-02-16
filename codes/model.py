@@ -225,7 +225,11 @@ class KGEModel(nn.Module):
         # Train GAN with positve sample
         # hyper parameters
         lr = 0.001
+<<<<<<< HEAD
         step = 1
+=======
+        step = 300
+>>>>>>> f417b76e4e143e625d1f14515b6609176c6a135f
         n_negs = negative_sample.size(1)
         k_negs = 64
         D, high_neg_triples = GANs.run(model, positive_sample, negative_sample, model.hidden_dim,
