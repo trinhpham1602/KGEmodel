@@ -56,7 +56,7 @@ class KGEModel(nn.Module):
         in their triple ((head, relation) or (relation, tail)).
         '''
         if mode == 'single':
-            batch_size, negative_sample_size = sample.size(0), 0
+            batch_size, negative_sample_size = sample.size(0), 1
 
             head = torch.index_select(
                 self.entity_embedding,
@@ -225,7 +225,7 @@ class KGEModel(nn.Module):
         # Train GAN with positve sample
         # hyper parameters
         lr = 0.001
-        step = 500
+        step = 1
         n_negs = negative_sample.size(1)
         k_negs = 64
         D, high_neg_triples = GANs.run(model, positive_sample, negative_sample, model.hidden_dim,
@@ -275,7 +275,6 @@ class KGEModel(nn.Module):
         '''
 
         model.eval()
-
         test_dataloader_head = DataLoader(
             TestDataset(
                 test_triples,
