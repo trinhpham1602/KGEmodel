@@ -50,6 +50,7 @@ def run(model, pos_triples, neg_triples, emb_dim, lr, step, n_negs, k_negs, mode
         opt_disc.zero_grad()
         opt_gen.zero_grad()
         # get embs for pos and neg
+        print(pos_triples)
         pos_embs = model.take_embs(pos_triples)
         h, r, t = model.take_embs((pos_triples, neg_triples), mode)
         global sum_negs, concat_hrt

@@ -47,7 +47,7 @@ def parse_args(args=None):
     parser.add_argument('--test_batch_size', default=4,
                         type=int, help='valid/test batch size')
     parser.add_argument('-pre', '--pretrain_path',
-                        default='./pretrain/FB15k-237', type=str)
+                        default='./pretrain/WN18RR', type=str)
 
     parser.add_argument('-lr', '--learning_rate', default=0.0001, type=float)
     parser.add_argument('-cpu', '--cpu_num', default=10, type=int)

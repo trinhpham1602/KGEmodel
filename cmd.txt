@@ -6,10 +6,26 @@ CUDA_VISIBLE_DEVICES=0 python3 -u codes/run.py --do_train \
  -lr 0.0001 --max_steps 150000 \
  -save models/TransE_FB15k-237 --test_batch_size 16
 having GPU
-!CUDA_VISIBLE_DEVICES=0 python -u codes/run.py --do_train --do_test --do_valid\
+CUDA_VISIBLE_DEVICES=0 python -u codes/run.py --do_train --do_test --do_valid\
  --cuda \
  --data_path data/FB15k-237 \
  -n 256 -b 1024 -d 500 \
  -g 24.0 -a 1.0 -adv \
  -lr 0.0001 --max_steps 10000 \
  -save models/TransE_FB15k-237 --test_batch_size 16
+_____________________________
+
+CUDA_VISIBLE_DEVICES=0 python -u codes/run.py --do_train \
+ --cuda \
+ --data_path data/FB15k-237 \
+ -n 256 -b 1024 -d 500 \
+ -g 24.0 -a 1.0 -adv \
+ -lr 0.0001 --max_steps 10000 \
+ -save models/TransE_GAN_FB15k-237 --test_batch_size 16 --pretrain_path ./pretrain/FB15k-237
+_________
+CUDA_VISIBLE_DEVICES=0 python3 -u codes/run.py --do_train \
+ --data_path data/WN18RR \
+ -n 512 -b 1024 -d 100 \
+ -g 6.0 -a 0.5 -adv \
+ -lr 0.00005 --max_steps 800 \
+ -save models/TransE_GAN_WN18RR --test_batch_size 16 --pretrain_path ./pretrain/WN18RR
