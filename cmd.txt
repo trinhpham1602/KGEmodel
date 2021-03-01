@@ -25,7 +25,7 @@ CUDA_VISIBLE_DEVICES=0 python -u codes/run.py --do_train \
 _________
 CUDA_VISIBLE_DEVICES=0 python3 -u codes/run.py --do_train \
  --data_path data/WN18RR \
- -n 512 -b 1024 -d 100 \
+ -n 512 -b 1024 -d 50 \
  -g 6.0 -a 0.5 -adv \
- -lr 0.00005 --max_steps 1000 \
+ -lr 0.00005 --max_steps 2000 \
  -save models/TransE_GAN_WN18RR --test_batch_size 16 --pretrain_path ./pretrain/WN18RR
