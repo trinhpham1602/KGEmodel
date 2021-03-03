@@ -54,8 +54,8 @@ def run(model, pos_triples, neg_triples, emb_dim, lr, step, n_negs, k_negs, mode
         # get embs for pos and neg
         # print(pos_triples)
         pos_embs = model.take_embs(pos_triples).detach()
-        pos_embs = pos_embs[torch.topk(torch.norm(
-            pos_embs,  dim=1).view(-1), k, largest=False).indices]
+        # pos_embs = pos_embs[torch.topk(torch.norm(
+        # pos_embs,  dim=1).view(-1), k, largest=False).indices]
         h, r, t = model.take_embs((pos_triples, neg_triples), mode)
         global sum_negs
         if mode == "head-batch":

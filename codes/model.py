@@ -225,9 +225,9 @@ class KGEModel(nn.Module):
         # Train GAN with positve sample
         # hyper parameters
         lr = 0.001
-        step = 1
+        step = 200
         n_negs = negative_sample.size(1)
-        k_negs = 64
+        k_negs = 10
         D, high_neg_triples = GANs.run(model, positive_sample, negative_sample, model.hidden_dim,
                                        lr, step, n_negs, k_negs, mode)
         if args.cuda:
