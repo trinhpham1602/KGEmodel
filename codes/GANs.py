@@ -6,7 +6,7 @@ from torch.autograd import Variable
 import numpy as np
 import random
 import model
-device = "cuda" if torch.cuda.is_available() else "cpu"
+device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
 
 class Discriminator(nn.Module):
@@ -45,23 +45,25 @@ def run(model, pos_triples, neg_triples, emb_dim, lr, step, n_negs, k_negs, mode
     b = 0
     pos_triples = pos_triples.to(device)
     neg_triples = neg_triples.to(device)
-    #start = time.time()
+    start = time.time()
     for _ in range(step):
         opt_disc.zero_grad()
         opt_gen.zero_grad()
         # get embs for pos and neg
         # print(pos_triples)
-        pos_embs = model.take_embs(pos_triples)
+        pos_embs = model.take_embs(pos_triples).detach()
         h, r, t = model.take_embs((pos_triples, neg_triples), mode)
-        global sum_negs, concat_hrt
+        global sum_negs
         if mode == "head-batch":
             sum_negs = h + (r - t)
         if mode == "tail-batch":
             sum_negs = (h + r) - t
+        pos_embs = pos_embs.to(device)
         loss_d = -torch.log(disc(pos_embs)) - \
             torch.sum(torch.log(1 - disc(sum_negs)))
         loss_d.mean().backward()
         opt_disc.step()
+        sum_negs = sum_negs.detach().to(device)
         reward = - disc(sum_negs).detach()
         concat_hrt = torch.empty((pos_embs.size(0), n_negs, emb_dim*3))
         if mode == "head-batch":
@@ -82,5 +84,5 @@ def run(model, pos_triples, neg_triples, emb_dim, lr, step, n_negs, k_negs, mode
         for inx, indices in enumerate(torch.topk(gen(concat_hrt).view(pos_triples.size(0), n_negs), k_negs, dim=1).indices):
             high_neg_triples[inx] = neg_triples[inx][indices]
         b = reward/pos_triples.size(0)
-    #print(time.time() - start)
+    print(time.time() - start)
     return disc, high_neg_triples.long()
