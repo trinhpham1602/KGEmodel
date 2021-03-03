@@ -243,7 +243,7 @@ def main(args):
                          args.negative_sample_size, 'head-batch'),
             batch_size=args.batch_size,
             shuffle=True,
-            num_workers=max(1, args.cpu_num//2),
+            num_workers=0,
             collate_fn=TrainDataset.collate_fn
         )
 
@@ -252,7 +252,7 @@ def main(args):
                          args.negative_sample_size, 'tail-batch'),
             batch_size=args.batch_size,
             shuffle=True,
-            num_workers=max(1, args.cpu_num//2),
+            num_workers=0,
             collate_fn=TrainDataset.collate_fn
         )
 
