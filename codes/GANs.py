@@ -6,7 +6,7 @@ from torch.autograd import Variable
 import numpy as np
 import random
 import model
-device = "cuda" if torch.cuda.is_available() else "cpu"
+device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
 
 class Discriminator(nn.Module):
